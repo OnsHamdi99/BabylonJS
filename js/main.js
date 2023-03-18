@@ -1,5 +1,5 @@
 // get our canva
-
+let shark;
 let canvas;
 let engine;
 let scene;
@@ -11,8 +11,6 @@ async function startGame() {
   canvas = document.querySelector("#myCanvas");
   engine = new BABYLON.Engine(canvas, true);
   scene = await createScene();
-  let shark = scene.getMeshByName("shark");
-  console.log(shark);
   modifySettings();
   // run the render loop
   // render : resituer
@@ -30,7 +28,7 @@ async function createScene() {
   skybox2(scene);
   createGround(scene);
   const fish = createFish(scene);
-  const shark = await createShark(scene);
+  shark = await createShark(scene);
   console.log(shark);
   if (shark) {
     followCamera = createFollowCamera(scene, shark);
@@ -123,22 +121,15 @@ function createFreeCamera(scene) {
 
 //create a follow camera
 function createFollowCamera(scene, target) {
-  let camera = new BABYLON.FollowCamera(
-    "sharkFollowCamera",
-    target.position,
-    scene,
-    target
-  );
-  camera.radius = 10; // Increase to move camera further away
-  camera.heightOffset = 4; // Increase to raise camera higher
-  camera.cameraAcceleration = 0.1;
-  camera.maxCameraSpeed = 5;
-  camera.rotationOffset = -180;
-  camera.lockedTarget = target;
-  camera.checkCollisions = true;
-  camera.applyGravity = true;
-  camera.attachControl(canvas, true);
-  return camera;
+    let camera = new BABYLON.FollowCamera("sharkFollowCamera", target.position, scene, target);
+
+    camera.radius = 13; // how far from the object to follow
+	camera.heightOffset = 4; // how high above the object to place the camera
+	camera.rotationOffset = 180; // the viewing angle
+	camera.cameraAcceleration = .1; // how fast to move
+	camera.maxCameraSpeed = 5; // speed limit
+
+    return camera;
 }
 // create a light
 //up on the sky and light up the scene / from above
@@ -149,29 +140,7 @@ function createLight(scene) {
     scene
   );
 }
-//creating  box
-function createBox(scene) {
-  const box = BABYLON.MeshBuilder.CreateBox("box", {}, scene);
-  //changing position of the box
-  box.position = new BABYLON.Vector3(0, 1, 0);
-  return box;
-}
-//creating a sphere
-function createSphere(scene) {
-  const sphere = BABYLON.MeshBuilder.CreateSphere(
-    "sphere",
-    { size: 10 },
-    scene
-  );
-  sphere.position = new BABYLON.Vector3(2, 1, 0);
-  return sphere;
-}
-//creating a plane
-function createPlane(scene) {
-  const plane = BABYLON.MeshBuilder.CreatePlane("plane", {}, scene);
-  plane.position = new BABYLON.Vector3(-3, 1, 0);
-  return plane;
-}
+let zMovement = 5;
 //creating a shark
 async function createShark(scene) {
   let shark = await BABYLON.SceneLoader.ImportMeshAsync(
@@ -181,18 +150,17 @@ async function createShark(scene) {
     scene
   );
 
-  let zMovement = 5;
-  let speed = 1;
+
 
 
   if (shark.meshes.length > 0) {
-
+    
     shark.meshes[0].position = new BABYLON.Vector3(0, 1, 0);
     shark.meshes[0].scaling = new BABYLON.Vector3(0.2, 0.2, 0.2);
-
-    shark.move = () => {
+    shark.meshes[0].frontVector = new BABYLON.Vector3(0, 0, 1);
+    shark.meshes[0].speed = 0.1;
+     shark.meshes[0].move = () => {
       let yMovement = 0;
-      shark.frontVector = new BABYLON.Vector3(0, 0, 1);
       if (shark.meshes[0].position.y > 2) {
         zMovement = 0;
         yMovement = -2;
@@ -200,45 +168,46 @@ async function createShark(scene) {
       //shark.meshes[0].moveWithCollisions(new BABYLON.Vector3(0, yMovement, zMovement));
 
       if (inputStates.up) {
-        //shark.meshes[0].moveWithCollisions(new BABYLON.Vector3(0, 0, 1*shark.meshes[0].speed));
-        shark.meshes[0].moveWithCollisions(
+ 
+        shark.meshes[0].moveWithCollisions(new BABYLON.Vector3(0, 0, -1*shark.meshes[0].speed));
+        /*shark.meshes[0].moveWithCollisions(
+          shark.meshes[0].frontVector.multiplyByFloats(
+            -shark.meshes[0].speed,
+            -shark.meshes[0].speed,
+           -shark.meshes[0].speed
+          )
+        ); */
+      } 
+      if (inputStates.down) {
+        shark.meshes[0].moveWithCollisions(new BABYLON.Vector3(0, 0, +1*shark.meshes[0].speed));
+      /*  shark.meshes[0].moveWithCollisions(
           shark.meshes[0].frontVector.multiplyByFloats(
             shark.meshes[0].speed,
             shark.meshes[0].speed,
             shark.meshes[0].speed
           )
-        );
-      }
-      if (inputStates.down) {
-        //shark.meshes[0].moveWithCollisions(new BABYLON.Vector3(0, 0, -1*shark.meshes[0].speed));
-        shark.meshes[0].moveWithCollisions(
-          shark.meshes[0].frontVector.multiplyByFloats(
-            -shark.meshes[0].speed,
-            -shark.meshes[0].speed,
-            -shark.meshes[0].speed
-          )
-        );
+        ); */
       }
       if (inputStates.left) {
-        //shark.meshes[0].moveWithCollisions(new BABYLON.Vector3(-1*shark.meshes[0].speed, 0, 0));
-        shark.meshes[0].rotation.y -= 0.02;
+        shark.meshes[0].moveWithCollisions(new BABYLON.Vector3(1*shark.meshes[0].speed, 0, 0));
+       /* shark.meshes[0].rotation.y -= 0.02;
         shark.meshes[0].frontVector = new BABYLON.Vector3(
           Math.sin(shark.meshes[0].rotation.y),
           0,
           Math.cos(shark.meshes[0].rotation.y)
-        );
+        ); */
       }
       if (inputStates.right) {
-        //shark.meshes[0].moveWithCollisions(new BABYLON.Vector3(1*shark.meshes[0].speed, 0, 0));
-        shark.meshes[0].rotation.y += 0.02;
+       shark.meshes[0].moveWithCollisions(new BABYLON.Vector3(-1*shark.meshes[0].speed, 0, 0));
+      /* shark.meshes[0].rotation.y += 0.02;
         shark.meshes[0].frontVector = new BABYLON.Vector3(
-          Math.sin(shark.meshes[0].rotation.y),
+          Math.sin(shark.meshes[0].rotation.x),
           0,
-          Math.cos(shark.meshes[0].rotation.y)
-        );
+          Math.cos(shark.meshes[0].rotation.x)
+        ); */
       }
-    };
-    return shark;
+    }
+    return shark.meshes[0];
   } else {
     console.error("No meshes found in shark.glb");
     return null;
