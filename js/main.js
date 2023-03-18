@@ -1,40 +1,61 @@
 // get our canva
-const canvas = document.getElementById("myCanvas"); 
 
-// Create a baylon engine object
-const engine = new BABYLON.Engine(canvas, true); 
+let canvas;
+let engine;
+let scene;
+// vars for handling inputs
+let inputStates = {};
+let followCamera;
 
-//create a scene 
-function createScene(){
+async function startGame() {
+  canvas = document.querySelector("#myCanvas");
+  engine = new BABYLON.Engine(canvas, true);
+  scene = await createScene();
+  let shark = scene.getMeshByName("shark");
+  console.log(shark);
+  modifySettings();
+  // run the render loop
+  // render : resituer
 
-    
-    const scene = new BABYLON.Scene(engine);
-    const light = createLight(scene);
-    const camera = createFreeCamera(scene);
-    const box = createBox(scene);
-    const sphere =  createSphere(scene)
-    const plane = createPlane(scene);
-    const seagull = createShark(scene);
-    let ground = createGround(scene);
- //  let sky = createSkybox(scene);
- let sky = skybox2(scene);
-    return scene;
+  engine.runRenderLoop(() => {
+    let deltaTime = engine.getDeltaTime(); // remind you something ?
+    shark.move();
+    scene.render();
+  });
 }
-//sky from image 
-function skybox2(scene){
-   
-        var skybox = BABYLON.Mesh.CreateBox("skyBox", 1000.0, scene);
-        var skyboxMaterial = new BABYLON.StandardMaterial("skyBoxMaterial", scene);
-        skyboxMaterial.backFaceCulling = false;
-        skyboxMaterial.reflectionTexture = new BABYLON.CubeTexture("assets/images/cubemap/", scene);
-        skyboxMaterial.reflectionTexture.coordinatesMode = BABYLON.Texture.SKYBOX_MODE;
-        skyboxMaterial.disableLighting = true;
-        skybox.material = skyboxMaterial;
-      
+//create a scene
+async function createScene() {
+  scene = new BABYLON.Scene(engine);
+  createLight(scene);
+  skybox2(scene);
+  createGround(scene);
+  const fish = createFish(scene);
+  const shark = await createShark(scene);
+  console.log(shark);
+  if (shark) {
+    followCamera = createFollowCamera(scene, shark);
+    scene.activeCamera = followCamera;
+  }
+
+  return scene;
+}
+//sky from image
+function skybox2(scene) {
+  var skybox = BABYLON.Mesh.CreateBox("skyBox", 1000.0, scene);
+  var skyboxMaterial = new BABYLON.StandardMaterial("skyBoxMaterial", scene);
+  skyboxMaterial.backFaceCulling = false;
+  skyboxMaterial.reflectionTexture = new BABYLON.CubeTexture(
+    "assets/images/cubemap/",
+    scene
+  );
+  skyboxMaterial.reflectionTexture.coordinatesMode =
+    BABYLON.Texture.SKYBOX_MODE;
+  skyboxMaterial.disableLighting = true;
+  skybox.material = skyboxMaterial;
 }
 //simple blue sky
 function createSkybox(scene, textureName, size) {
-    var skyMaterial = new BABYLON.SkyMaterial("skyMaterial", scene);
+  var skyMaterial = new BABYLON.SkyMaterial("skyMaterial", scene);
   skyMaterial.backFaceCulling = false;
 
   skyMaterial.inclination = 0; //The solar inclination angle in radians
@@ -56,75 +77,283 @@ function createSkybox(scene, textureName, size) {
   skybox.infiniteDistance = true;
 
   return skybox;
-  }
-// create a ground 
+}
+// create a ground
 function createGround(scene) {
-   const groundOptions = { width:500, height:500, subdivisions:20, minHeight:0, maxHeight:50, onReady: onGroundCreated};
+  const groundOptions = {
+    width: 500,
+    height: 500,
+    subdivisions: 20,
+    minHeight: 0,
+    maxHeight: 50,
+    onReady: onGroundCreated,
+  };
 
-    const ground = BABYLON.MeshBuilder.CreateGroundFromHeightMap("gdhm", 'assets/images/hmap1.png', groundOptions, scene); 
-    function onGroundCreated() {
-        const groundMaterial = new BABYLON.StandardMaterial("groundMaterial", scene);
-        groundMaterial.diffuseTexture = new BABYLON.Texture("assets/images/ocean.jpg");
-        ground.material = groundMaterial;
-        // to be taken into account by collision detection
-        ground.checkCollisions = true;
-        //groundMaterial.wireframe=true;
-    }
+  const ground = BABYLON.MeshBuilder.CreateGroundFromHeightMap(
+    "gdhm",
+    "assets/images/hmap1.png",
+    groundOptions,
+    scene
+  );
+  function onGroundCreated() {
+    const groundMaterial = new BABYLON.StandardMaterial(
+      "groundMaterial",
+      scene
+    );
+    groundMaterial.diffuseTexture = new BABYLON.Texture(
+      "assets/images/ocean.jpg"
+    );
+    ground.material = groundMaterial;
+    // to be taken into account by collision detection
+    ground.checkCollisions = true;
+    //groundMaterial.wireframe=true;
+  }
 
-    return ground;
+  return ground;
 }
 //create a free camera
-function createFreeCamera (scene){
-    const camera = new BABYLON.FreeCamera("FreeCamera", new BABYLON.Vector3(0, 2, -5), scene);
-    camera.attachControl(canvas, true);
+function createFreeCamera(scene) {
+  const camera = new BABYLON.FreeCamera(
+    "FreeCamera",
+    new BABYLON.Vector3(0, 2, -5),
+    scene
+  );
+  //  camera.attachControl(canvas, true);
+}
+
+//create a follow camera
+function createFollowCamera(scene, target) {
+  let camera = new BABYLON.FollowCamera(
+    "sharkFollowCamera",
+    target.position,
+    scene,
+    target
+  );
+  camera.radius = 10; // Increase to move camera further away
+  camera.heightOffset = 4; // Increase to raise camera higher
+  camera.cameraAcceleration = 0.1;
+  camera.maxCameraSpeed = 5;
+  camera.rotationOffset = -180;
+  camera.lockedTarget = target;
+  camera.checkCollisions = true;
+  camera.applyGravity = true;
+  camera.attachControl(canvas, true);
+  return camera;
 }
 // create a light
 //up on the sky and light up the scene / from above
-function createLight(scene){
-    const light = new BABYLON.HemisphericLight("HemiLight", new BABYLON.Vector3(0, 1, 0), scene);
+function createLight(scene) {
+  const light = new BABYLON.HemisphericLight(
+    "HemiLight",
+    new BABYLON.Vector3(0, 1, 0),
+    scene
+  );
 }
-//creating  box 
-function createBox(scene){
-    const box = BABYLON.MeshBuilder.CreateBox("box", {}, scene);
-    //changing position of the box
-    box.position = new BABYLON.Vector3(0, 1, 0);
-    return box;
+//creating  box
+function createBox(scene) {
+  const box = BABYLON.MeshBuilder.CreateBox("box", {}, scene);
+  //changing position of the box
+  box.position = new BABYLON.Vector3(0, 1, 0);
+  return box;
 }
-function createSphere(scene){
-    const sphere = BABYLON.MeshBuilder.CreateSphere("sphere",{size : 10}, scene); 
-    sphere.position = new BABYLON.Vector3(2, 1, 0);
-    return sphere;
+//creating a sphere
+function createSphere(scene) {
+  const sphere = BABYLON.MeshBuilder.CreateSphere(
+    "sphere",
+    { size: 10 },
+    scene
+  );
+  sphere.position = new BABYLON.Vector3(2, 1, 0);
+  return sphere;
 }
-//creating a plane 
-function createPlane(scene){
-    const plane = BABYLON.MeshBuilder.CreatePlane("plane", {}, scene);
-    plane.position = new BABYLON.Vector3(-3, 1, 0);
-    return plane;
+//creating a plane
+function createPlane(scene) {
+  const plane = BABYLON.MeshBuilder.CreatePlane("plane", {}, scene);
+  plane.position = new BABYLON.Vector3(-3, 1, 0);
+  return plane;
 }
 //creating a shark
 async function createShark(scene) {
-    let shark = await BABYLON.SceneLoader.ImportMeshAsync("", "https://raw.githubusercontent.com/BabylonJS/MeshesLibrary/master/", "shark.glb", scene);
-    if (shark.meshes.length > 0) {
-        shark.meshes[0].position = new BABYLON.Vector3(-5, 1, 0);  
-        shark.meshes[0].scaling = new BABYLON.Vector3(0.2, 0.2, 0.2);
-        return shark.meshes[0];
-    } else {
-        console.error("No meshes found in shark.glb");
-        return null;
-    }
+  let shark = await BABYLON.SceneLoader.ImportMeshAsync(
+    "",
+    "https://raw.githubusercontent.com/BabylonJS/MeshesLibrary/master/",
+    "shark.glb",
+    scene
+  );
+
+  let zMovement = 5;
+  let speed = 1;
+
+
+  if (shark.meshes.length > 0) {
+
+    shark.meshes[0].position = new BABYLON.Vector3(0, 1, 0);
+    shark.meshes[0].scaling = new BABYLON.Vector3(0.2, 0.2, 0.2);
+
+    shark.move = () => {
+      let yMovement = 0;
+      shark.frontVector = new BABYLON.Vector3(0, 0, 1);
+      if (shark.meshes[0].position.y > 2) {
+        zMovement = 0;
+        yMovement = -2;
+      }
+      //shark.meshes[0].moveWithCollisions(new BABYLON.Vector3(0, yMovement, zMovement));
+
+      if (inputStates.up) {
+        //shark.meshes[0].moveWithCollisions(new BABYLON.Vector3(0, 0, 1*shark.meshes[0].speed));
+        shark.meshes[0].moveWithCollisions(
+          shark.meshes[0].frontVector.multiplyByFloats(
+            shark.meshes[0].speed,
+            shark.meshes[0].speed,
+            shark.meshes[0].speed
+          )
+        );
+      }
+      if (inputStates.down) {
+        //shark.meshes[0].moveWithCollisions(new BABYLON.Vector3(0, 0, -1*shark.meshes[0].speed));
+        shark.meshes[0].moveWithCollisions(
+          shark.meshes[0].frontVector.multiplyByFloats(
+            -shark.meshes[0].speed,
+            -shark.meshes[0].speed,
+            -shark.meshes[0].speed
+          )
+        );
+      }
+      if (inputStates.left) {
+        //shark.meshes[0].moveWithCollisions(new BABYLON.Vector3(-1*shark.meshes[0].speed, 0, 0));
+        shark.meshes[0].rotation.y -= 0.02;
+        shark.meshes[0].frontVector = new BABYLON.Vector3(
+          Math.sin(shark.meshes[0].rotation.y),
+          0,
+          Math.cos(shark.meshes[0].rotation.y)
+        );
+      }
+      if (inputStates.right) {
+        //shark.meshes[0].moveWithCollisions(new BABYLON.Vector3(1*shark.meshes[0].speed, 0, 0));
+        shark.meshes[0].rotation.y += 0.02;
+        shark.meshes[0].frontVector = new BABYLON.Vector3(
+          Math.sin(shark.meshes[0].rotation.y),
+          0,
+          Math.cos(shark.meshes[0].rotation.y)
+        );
+      }
+    };
+    return shark;
+  } else {
+    console.error("No meshes found in shark.glb");
+    return null;
+  }
 }
 
+//creating fishes
+async function createFish(scene) {
+  let fish = await BABYLON.SceneLoader.ImportMeshAsync(
+    "",
+    "https://raw.githubusercontent.com/BabylonJS/MeshesLibrary/master/",
+    "fish.glb",
+    scene
+  );
+  if (fish.meshes.length > 0) {
+    fish.meshes[0].name = "fish";
+    fish.meshes[0].position = new BABYLON.Vector3(-10, 1, 0);
+    fish.meshes[0].scaling = new BABYLON.Vector3(0.05, 0.05, 0.05);
+    return fish.meshes[0];
+  } else {
+    console.error("No meshes found in fish.glb");
+    return null;
+  }
+}
+
+function modifySettings() {
+  // as soon as we click on the game window, the mouse pointer is "locked"
+  // you will have to press ESC to unlock it
+  scene.onPointerDown = () => {
+    if (!scene.alreadyLocked) {
+      console.log("requesting pointer lock");
+      canvas.requestPointerLock();
+    } else {
+      console.log("Pointer already locked");
+    }
+  };
+
+  document.addEventListener("pointerlockchange", () => {
+    let element = document.pointerLockElement || null;
+    if (element) {
+      // lets create a custom attribute
+      scene.alreadyLocked = true;
+    } else {
+      scene.alreadyLocked = false;
+    }
+  });
+
+  // key listeners for the shark.meshes[0]
+  inputStates.left = false;
+  inputStates.right = false;
+  inputStates.up = false;
+  inputStates.down = false;
+  inputStates.space = false;
+
+  //add the listener to the main, window object, and update the states
+  window.addEventListener(
+    "keydown",
+    (event) => {
+      if (event.key === "ArrowLeft" || event.key === "q" || event.key === "Q") {
+        inputStates.left = true;
+      } else if (
+        event.key === "ArrowUp" ||
+        event.key === "z" ||
+        event.key === "Z"
+      ) {
+        inputStates.up = true;
+      } else if (
+        event.key === "ArrowRight" ||
+        event.key === "d" ||
+        event.key === "D"
+      ) {
+        inputStates.right = true;
+      } else if (
+        event.key === "ArrowDown" ||
+        event.key === "s" ||
+        event.key === "S"
+      ) {
+        inputStates.down = true;
+      } else if (event.key === " ") {
+        inputStates.space = true;
+      }
+    },
+    false
+  );
+
+  //if the key will be released, change the states object
+  window.addEventListener(
+    "keyup",
+    (event) => {
+      if (event.key === "ArrowLeft" || event.key === "q" || event.key === "Q") {
+        inputStates.left = false;
+      } else if (
+        event.key === "ArrowUp" ||
+        event.key === "z" ||
+        event.key === "Z"
+      ) {
+        inputStates.up = false;
+      } else if (
+        event.key === "ArrowRight" ||
+        event.key === "d" ||
+        event.key === "D"
+      ) {
+        inputStates.right = false;
+      } else if (
+        event.key === "ArrowDown" ||
+        event.key === "s" ||
+        event.key === "S"
+      ) {
+        inputStates.down = false;
+      } else if (event.key === " ") {
+        inputStates.space = false;
+      }
+    },
+    false
+  );
+}
 
 window.onload = startGame;
-
-function startGame(){ 
-
-// call the createScene function
-const scene = createScene();
-// run the render loop
-// render : resituer
-engine.runRenderLoop(() => { 
-    scene.render();
-});
-
-}
