@@ -1,4 +1,5 @@
 // get our canva
+let fishes = [];
 let shark;
 let canvas;
 let engine;
@@ -6,18 +7,20 @@ let scene;
 // vars for handling inputs
 let inputStates = {};
 let followCamera;
-
+let score = 0;
 async function startGame() {
   canvas = document.querySelector("#myCanvas");
   engine = new BABYLON.Engine(canvas, true);
   scene = await createScene();
+  addFishes(scene);
   modifySettings();
   // run the render loop
   // render : resituer
-
+  console.log(fishes.length + " fishes");
   engine.runRenderLoop(() => {
     let deltaTime = engine.getDeltaTime(); // remind you something ?
     shark.move();
+   
     scene.render();
   });
 }
@@ -27,13 +30,14 @@ async function createScene() {
   createLight(scene);
   skybox2(scene);
   createGround(scene);
-  const fish = createFish(scene);
+
   shark = await createShark(scene);
   console.log(shark);
   if (shark) {
     followCamera = createFollowCamera(scene, shark);
     scene.activeCamera = followCamera;
   }
+
 
   return scene;
 }
@@ -83,7 +87,7 @@ function createGround(scene) {
     height: 500,
     subdivisions: 20,
     minHeight: 0,
-    maxHeight: 50,
+    maxHeight: 10,
     onReady: onGroundCreated,
   };
 
@@ -93,6 +97,8 @@ function createGround(scene) {
     groundOptions,
     scene
   );
+
+
   function onGroundCreated() {
     const groundMaterial = new BABYLON.StandardMaterial(
       "groundMaterial",
@@ -102,12 +108,35 @@ function createGround(scene) {
       "assets/images/ocean.jpg"
     );
     ground.material = groundMaterial;
+    
     // to be taken into account by collision detection
     ground.checkCollisions = true;
-    //groundMaterial.wireframe=true;
-  }
+    //create water ground 
+/*
+    const waterMaterial = new BABYLON.StandardMaterial("waterMaterial", scene);
+    const waterTexture = new BABYLON.WaterMaterial("waterTexture", scene);
+    waterTexture.bumpTexture = new BABYLON.Texture("assets/images/waterbump.png", scene);
+    waterTexture.windForce = -10;
+    waterTexture.waveHeight = 0.1;
+    waterTexture.bumpHeight = 0.1;
+    waterTexture.waveLength = 0.1;
+    waterTexture.colorBlendFactor = 0;
+    waterTexture.addToRenderList(ground);
+    waterMaterial.reflectionTexture = waterTexture;
+    waterMaterial.refractionTexture = waterTexture;
+    waterMaterial.diffuseColor = new BABYLON.Color3(0, 0, 0);
+    waterMaterial.emissiveColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+    waterMaterial.alpha = 0.9;
+    waterMaterial.specularPower = 16;
+    waterMaterial.addToRenderList(scene.skybox);
+
+    const waterMesh = BABYLON.Mesh.CreateGround("waterMesh", 500, 500, 1, scene, false);
+    waterMesh.material = waterMaterial;
+    waterMesh.position.y = -1;
+    */
 
   return ground;
+}
 }
 //create a free camera
 function createFreeCamera(scene) {
@@ -156,55 +185,56 @@ async function createShark(scene) {
   if (shark.meshes.length > 0) {
     
     shark.meshes[0].position = new BABYLON.Vector3(0, 1, 0);
-    shark.meshes[0].scaling = new BABYLON.Vector3(0.2, 0.2, 0.2);
+    shark.meshes[0].scaling = new BABYLON.Vector3(0.3, 0.3, 0.3);
     shark.meshes[0].frontVector = new BABYLON.Vector3(0, 0, 1);
     shark.meshes[0].speed = 0.1;
-     shark.meshes[0].move = () => {
+     shark.meshes[0].move = () => { 
+      let sharkActionManager = new BABYLON.ActionManager(scene);
+
+      // register an action to be triggered when the shark collides with a fish
+      sharkActionManager.registerAction(
+        new BABYLON.ExecuteCodeAction(
+          {
+            trigger: BABYLON.ActionManager.OnIntersectionEnterTrigger,
+            parameter: { mesh: shark.meshes[0], usePreciseIntersection: true }
+          },
+          function (evt) {
+            let fishMesh = evt.source;
+            // remove fish from array and scene
+            let index = fishes.indexOf(fishMesh);
+            if (index > -1) {
+              fishes.splice(index, 1);
+              fishMesh.dispose();
+              score++;
+              console.log(score);
+            }
+          }
+        )
+      ); 
+      
       let yMovement = 0;
       if (shark.meshes[0].position.y > 2) {
         zMovement = 0;
         yMovement = -2;
       }
-      //shark.meshes[0].moveWithCollisions(new BABYLON.Vector3(0, yMovement, zMovement));
 
       if (inputStates.up) {
  
         shark.meshes[0].moveWithCollisions(new BABYLON.Vector3(0, 0, -1*shark.meshes[0].speed));
-        /*shark.meshes[0].moveWithCollisions(
-          shark.meshes[0].frontVector.multiplyByFloats(
-            -shark.meshes[0].speed,
-            -shark.meshes[0].speed,
-           -shark.meshes[0].speed
-          )
-        ); */
+
       } 
       if (inputStates.down) {
         shark.meshes[0].moveWithCollisions(new BABYLON.Vector3(0, 0, +1*shark.meshes[0].speed));
-      /*  shark.meshes[0].moveWithCollisions(
-          shark.meshes[0].frontVector.multiplyByFloats(
-            shark.meshes[0].speed,
-            shark.meshes[0].speed,
-            shark.meshes[0].speed
-          )
-        ); */
       }
       if (inputStates.left) {
-        shark.meshes[0].moveWithCollisions(new BABYLON.Vector3(1*shark.meshes[0].speed, 0, 0));
-       /* shark.meshes[0].rotation.y -= 0.02;
-        shark.meshes[0].frontVector = new BABYLON.Vector3(
-          Math.sin(shark.meshes[0].rotation.y),
-          0,
-          Math.cos(shark.meshes[0].rotation.y)
-        ); */
+
+     shark.meshes[0].moveWithCollisions(new BABYLON.Vector3(1*shark.meshes[0].speed, 0, 0));
+        
       }
       if (inputStates.right) {
-       shark.meshes[0].moveWithCollisions(new BABYLON.Vector3(-1*shark.meshes[0].speed, 0, 0));
-      /* shark.meshes[0].rotation.y += 0.02;
-        shark.meshes[0].frontVector = new BABYLON.Vector3(
-          Math.sin(shark.meshes[0].rotation.x),
-          0,
-          Math.cos(shark.meshes[0].rotation.x)
-        ); */
+
+     shark.meshes[0].moveWithCollisions(new BABYLON.Vector3(-1*shark.meshes[0].speed, 0, 0));
+    
       }
     }
     return shark.meshes[0];
@@ -224,14 +254,16 @@ async function createFish(scene) {
   );
   if (fish.meshes.length > 0) {
     fish.meshes[0].name = "fish";
-    fish.meshes[0].position = new BABYLON.Vector3(-10, 1, 0);
-    fish.meshes[0].scaling = new BABYLON.Vector3(0.05, 0.05, 0.05);
+    let xrand = Math.floor(Math.random()*500 ) - 250;
+    let zrand = Math.floor(Math.random()*500) - 250;
+    fish.meshes[0].position = new BABYLON.Vector3(xrand, 1, zrand);
+    fish.meshes[0].scaling = new BABYLON.Vector3(0.2, 0.2, 0.2);
     return fish.meshes[0];
   } else {
     console.error("No meshes found in fish.glb");
     return null;
   }
-}
+} 
 
 function modifySettings() {
   // as soon as we click on the game window, the mouse pointer is "locked"
@@ -324,5 +356,26 @@ function modifySettings() {
     false
   );
 }
+function removeFishIfTouched(shark, fishes) {
+  console.log("removeFishIfTouched");
+  for (let i = 0; i < fishes.length; i++) {
+    const fish = fishes[i];
+    if (shark.intersectsMesh(fish, true)) {
+      fish.dispose();
+      fishes.splice(i, 1);
+      i--;
+    }
+  }
+}
+
+function addFishes(scene) {
+  for (let i = 0; i < 10; i++) {
+    let fish = createFish(scene);
+
+    fishes.push(fish);
+  }
+}
+
+
 
 window.onload = startGame;
