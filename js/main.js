@@ -1,4 +1,5 @@
 // get our canva
+let barrels = [];
 let fishes = [];
 let shark;
 let canvas;
@@ -13,12 +14,13 @@ async function startGame() {
   engine = new BABYLON.Engine(canvas, true);
   scene = await createScene();
   addFishes(scene);
+  addBarrels(scene);
   modifySettings();
   // run the render loop
   // render : resituer
   console.log(fishes.length + " fishes");
   engine.runRenderLoop(() => {
-    let deltaTime = engine.getDeltaTime(); // remind you something ?
+    let deltaTime = engine.getDeltaTime(); 
     shark.move();
    
     scene.render();
@@ -36,6 +38,7 @@ async function createScene() {
   if (shark) {
     followCamera = createFollowCamera(scene, shark);
     scene.activeCamera = followCamera;
+    
   }
 
 
@@ -243,7 +246,25 @@ async function createShark(scene) {
     return null;
   }
 }
-
+async function createBarrel(scene) {
+  let barrel = await BABYLON.SceneLoader.ImportMeshAsync(
+    "",
+    "https://raw.githubusercontent.com/BabylonJS/MeshesLibrary/master/",
+    "ExplodingBarrel.glb",
+    scene
+  );
+  if (barrel.meshes.length > 0) {
+    barrel.meshes[0].name = "barrel";
+    let xrand = Math.floor(Math.random()* 350 ) - 150;
+    let zrand = Math.floor(Math.random()*350) - 150;
+    barrel.meshes[0].position = new BABYLON.Vector3(xrand, 1, zrand);
+    barrel.meshes[0].scaling = new BABYLON.Vector3(0.03, 0.03, 0.03);
+    return barrel.meshes[0];
+  } else {
+    console.error("No meshes found in barrel.glb");
+    return null;
+  }
+}
 //creating fishes
 async function createFish(scene) {
   let fish = await BABYLON.SceneLoader.ImportMeshAsync(
@@ -376,6 +397,11 @@ function addFishes(scene) {
   }
 }
 
-
+function addBarrels(scene) {
+  for (let i = 0; i < 6; i++) {
+    let barrel = createBarrel(scene);
+    barrels.push(barrel);
+  } 
+}
 
 window.onload = startGame;
